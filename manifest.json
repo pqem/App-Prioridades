@@ -1,0 +1,20 @@
+{
+  "short_name": "Prioridades",
+  "name": "Matriz de Prioridades Cyberpunk",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/10605/10605903.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/10605/10605903.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#050a14",
+  "background_color": "#050a14"
+}
