@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es" class="dark">
 <head>
@@ -136,9 +135,7 @@
     "clsx": "https://esm.sh/clsx@2.0.0",
     "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
     "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
-    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/"
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
   }
 }
 </script>
@@ -187,7 +184,7 @@
         } from 'firebase/auth';
         import { 
             getFirestore, collection, addDoc, query, where, onSnapshot, 
-            doc, updateDoc, deleteDoc, orderBy, serverTimestamp, arrayUnion
+            doc, updateDoc, deleteDoc, orderBy, serverTimestamp, arrayUnion, arrayRemove
         } from 'firebase/firestore';
 
         console.log("Modules loaded successfully");
@@ -441,7 +438,7 @@
             );
         };
 
-        const Sidebar = ({ isOpen, onClose, user, boards, currentBoardId, onSelectBoard, onCreateBoard, onLogout }) => {
+        const Sidebar = ({ isOpen, onClose, user, boards, currentBoardId, onSelectBoard, onCreateBoard, onLogout, onDeleteBoard, onLeaveBoard }) => {
             return (
                 <>
                     {isOpen && <div className="fixed inset-0 bg-black/60 z-40 md:hidden" onClick={onClose} />}
@@ -456,14 +453,18 @@
                                 <h3 className="text-xs font-bold text-slate-500 mb-3 px-2 uppercase tracking-wider">Mis Tableros</h3>
                                 <div className="space-y-1">
                                     {boards.filter(b => b.ownerId === user.uid).map(board => (
-                                        <button 
-                                            key={board.id}
-                                            onClick={() => { onSelectBoard(board.id); onClose(); }}
-                                            className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all ${currentBoardId === board.id ? 'bg-neon-blue/20 text-neon-blue border border-neon-blue/50' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
-                                        >
-                                            <LayoutGrid size={16} />
-                                            <span className="font-bold truncate">{board.title}</span>
-                                        </button>
+                                        <div key={board.id} className={`group flex items-center rounded-lg transition-all ${currentBoardId === board.id ? 'bg-neon-blue/20 border border-neon-blue/50' : 'hover:bg-white/5'}`}>
+                                            <button 
+                                                onClick={() => { onSelectBoard(board.id); onClose(); }}
+                                                className={`flex-1 text-left p-3 flex items-center gap-3 ${currentBoardId === board.id ? 'text-neon-blue' : 'text-slate-400 group-hover:text-white'}`}
+                                            >
+                                                <LayoutGrid size={16} />
+                                                <span className="font-bold truncate max-w-[120px]">{board.title}</span>
+                                            </button>
+                                            <button onClick={(e) => { e.stopPropagation(); onDeleteBoard(board.id); }} className="p-2 text-slate-600 hover:text-neon-red transition-colors" title="Eliminar Tablero">
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
                                     ))}
                                 </div>
                             </div>
@@ -472,15 +473,19 @@
                                 <h3 className="text-xs font-bold text-slate-500 mb-3 px-2 uppercase tracking-wider">Compartidos</h3>
                                 <div className="space-y-1">
                                     {boards.filter(b => b.ownerId !== user.uid).map(board => (
-                                        <button 
-                                            key={board.id}
-                                            onClick={() => { onSelectBoard(board.id); onClose(); }}
-                                            className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all ${currentBoardId === board.id ? 'bg-neon-yellow/20 text-neon-yellow border border-neon-yellow/50' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
-                                        >
-                                            <Users size={16} />
-                                            <span className="font-bold truncate">{board.title}</span>
-                                            <span className="ml-auto text-[10px] bg-neon-yellow/20 px-1 rounded text-neon-yellow">SHARED</span>
-                                        </button>
+                                        <div key={board.id} className={`group flex items-center rounded-lg transition-all ${currentBoardId === board.id ? 'bg-neon-yellow/20 border border-neon-yellow/50' : 'hover:bg-white/5'}`}>
+                                            <button 
+                                                onClick={() => { onSelectBoard(board.id); onClose(); }}
+                                                className={`flex-1 text-left p-3 flex items-center gap-3 ${currentBoardId === board.id ? 'text-neon-yellow' : 'text-slate-400 group-hover:text-white'}`}
+                                            >
+                                                <Users size={16} />
+                                                <span className="font-bold truncate max-w-[100px]">{board.title}</span>
+                                                <span className="text-[8px] bg-neon-yellow/20 px-1 rounded text-neon-yellow ml-auto">SHARED</span>
+                                            </button>
+                                            <button onClick={(e) => { e.stopPropagation(); onLeaveBoard(board.id); }} className="p-2 text-slate-600 hover:text-neon-red transition-colors" title="Salir del Tablero">
+                                                <LogOut size={14} />
+                                            </button>
+                                        </div>
                                     ))}
                                     {boards.filter(b => b.ownerId !== user.uid).length === 0 && (
                                         <p className="text-xs text-slate-600 px-2 italic">No tienes tableros compartidos.</p>
@@ -624,6 +629,25 @@
                 } catch (e) { alert("Error sharing: " + e.message); }
             };
 
+            const handleDeleteBoard = async (boardId) => {
+                if (!window.confirm("¿ESTÁS SEGURO?\nSe borrará este tablero y todas sus tareas permanentemente.")) return;
+                try {
+                    await deleteDoc(doc(db, "boards", boardId));
+                    if (currentBoardId === boardId) setCurrentBoardId(null);
+                } catch (e) { alert("Error al eliminar: " + e.message); }
+            };
+
+            const handleLeaveBoard = async (boardId) => {
+                if (!window.confirm("¿Quieres salir de este tablero compartido?")) return;
+                try {
+                    const boardRef = doc(db, "boards", boardId);
+                    await updateDoc(boardRef, {
+                        memberIds: arrayRemove(user.email)
+                    });
+                    if (currentBoardId === boardId) setCurrentBoardId(null);
+                } catch (e) { alert("Error al salir: " + e.message); }
+            };
+
             // --- TASK ACTIONS (FIRESTORE) ---
             const handleAddTask = async (e) => {
                 e.preventDefault();
@@ -748,6 +772,8 @@
                             onSelectBoard={setCurrentBoardId}
                             onCreateBoard={() => setShowCreateModal(true)}
                             onLogout={handleLogout}
+                            onDeleteBoard={handleDeleteBoard}
+                            onLeaveBoard={handleLeaveBoard}
                         />
 
                         {/* TASK INPUT */}
